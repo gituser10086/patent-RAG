@@ -1,9 +1,9 @@
-#Patent RAG System for Prior Art Search
-##Overview
+# Patent RAG System for Prior Art Search
+## Overview
 
 This project aims to build a Retrieval-Augmented Generation (RAG) system that helps determine whether a new invention is already covered by existing patents.
 
-##Objectives
+## Objectives
 Search patent databases using natural language invention descriptions.
 Identify similar patents and prior art.
 Compare invention features with patent claims.
