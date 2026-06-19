@@ -5,7 +5,11 @@ This project aims to build a Retrieval-Augmented Generation (RAG) system that he
 
 ## Objectives
 Search patent databases using natural language invention descriptions.
+
 Identify similar patents and prior art.
+
 Compare invention features with patent claims.
+
 Generate explainable novelty assessments.
+
 Architecture
