@@ -12,4 +12,4 @@ Compare invention features with patent claims.
 
 Generate explainable novelty assessments.
 
-Architecture
+## Architecture
