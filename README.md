@@ -13,3 +13,7 @@ Compare invention features with patent claims.
 Generate explainable novelty assessments.
 
 ## Architecture
+
+## Data
+https://data.uspto.gov/bulkdata/datasets/appxml?fileData=&fileDataFromDate=2025-06-20&fileDataToDate=2026-06-20
+
