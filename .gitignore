@@ -1,0 +1,14 @@
+# ===== Data folders (IMPORTANT) =====
+patents/
+patents_50/
+*.zip
+*.xml
+*.txt
+
+# ===== Python cache =====
+__pycache__/
+*.pyc
+
+# ===== OS =====
+.DS_Store
+
