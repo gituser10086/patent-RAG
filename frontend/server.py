@@ -16,6 +16,9 @@ from flask import Flask, request, jsonify, send_from_directory
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import API_KEY, BASE_URL
 
+# Import similarity processing utilities
+from similarity import process_query_response
+
 app = Flask(__name__, static_folder=".")
 
 HEADERS = {
@@ -82,32 +85,10 @@ def search_prior_art():
         # Parse the response from the API
         result_data = resp.json()
 
-        # Extract similarity results from the response
-        info = result_data.get("info", {})
-        nodedetails = info.get("nodedetails", {})
-        chunk_details = nodedetails.get("chunkdetails", [])
-        sources = info.get("sources", [])
-        answer = result_data.get("answer", "")
+        # Use the similarity module to extract and structure results
+        parsed = process_query_response(result_data)
 
-        # Build a structured results list
-        results = []
-        for chunk in chunk_details:
-            results.append({
-                "patent_id": chunk.get("id", "unknown"),
-                "title": f"Patent Document (chunk: {chunk.get('id', '')[:12]}...)",
-                "similarity": chunk.get("score", 0),
-                "snippet": ""
-            })
-
-        # Sort by similarity score descending
-        results.sort(key=lambda x: x["similarity"], reverse=True)
-
-        return jsonify({
-            "results": results,
-            "answer": answer,
-            "sources": sources,
-            "total_results": len(results)
-        })
+        return jsonify(parsed)
 
     except requests.exceptions.Timeout:
         return jsonify({"error": "Request to backend API timed out"}), 504
