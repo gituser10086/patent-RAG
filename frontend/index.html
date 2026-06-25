@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PatentRAG - Prior Art Search</title>
+    <style>
+        /* ---------- Reset & Base ---------- */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #f0f2f5;
+            color: #1a1a2e;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* ---------- Layout ---------- */
+        .app-container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+
+        /* ---------- Header ---------- */
+        header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1a1a2e;
+            letter-spacing: -0.5px;
+        }
+
+        header h1 span {
+            color: #4361ee;
+        }
+
+        header p {
+            color: #6c757d;
+            font-size: 1rem;
+            margin-top: 0.3rem;
+        }
+
+        /* ---------- Cards ---------- */
+        .card {
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+            padding: 1.75rem;
+            margin-bottom: 1.5rem;
+            transition: box-shadow 0.2s ease;
+        }
+
+        .card:hover {
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card-title .icon {
+            font-size: 1.3rem;
+        }
+
+        /* ---------- Textarea ---------- */
+        textarea {
+            width: 100%;
+            min-height: 200px;
+            padding: 1rem;
+            border: 1.5px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+            resize: vertical;
+            transition: border-color 0.2s ease;
+            line-height: 1.5;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #4361ee;
+            box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
+        }
+
+        textarea::placeholder {
+            color: #adb5bd;
+        }
+
+        /* ---------- File Upload Area ---------- */
+        .file-upload-area {
+            border: 2px dashed #d0d5dd;
+            border-radius: 8px;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-bottom: 1rem;
+        }
+
+        .file-upload-area:hover,
+        .file-upload-area.dragover {
+            border-color: #4361ee;
+            background: rgba(67, 97, 238, 0.03);
+        }
+
+        .file-upload-area .upload-icon {
+            font-size: 2.5rem;
+            color: #4361ee;
+            margin-bottom: 0.5rem;
+        }
+
+        .file-upload-area p {
+            color: #6c757d;
+            font-size: 0.95rem;
+        }
+
+        .file-upload-area .file-name {
+            color: #4361ee;
+            font-weight: 600;
+            margin-top: 0.5rem;
+        }
+
+        .file-upload-area input[type="file"] {
+            display: none;
+        }
+
+        /* ---------- Buttons ---------- */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.7rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: #4361ee;
+            color: #ffffff;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #3651d4;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(67, 97, 238, 0.3);
+        }
+
+        .btn-secondary {
+            background: #e9ecef;
+            color: #495057;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #dee2e6;
+        }
+
+        .btn-danger {
+            background: #ef476f;
+            color: #ffffff;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #d63d62;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+
+        /* ---------- Status / Loading ---------- */
+        .status-bar {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .status-bar.hidden {
+            display: none;
+        }
+
+        .status-bar.info {
+            background: #e7f0ff;
+            color: #1a56db;
+        }
+
+        .status-bar.success {
+            background: #d3f9d8;
+            color: #2b8a3e;
+        }
+
+        .status-bar.error {
+            background: #ffe3e3;
+            color: #c92a2a;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            border: 2.5px solid #e0e0e0;
+            border-top-color: #4361ee;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* ---------- Results Table ---------- */
+        .results-section {
+            margin-top: 0.5rem;
+        }
+
+        .results-summary {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .results-count {
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+
+        .results-count strong {
+            color: #1a1a2e;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .results-table th {
+            text-align: left;
+            padding: 0.75rem 1rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #6c757d;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .results-table td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 0.9rem;
+            vertical-align: top;
+        }
+
+        .results-table tr:hover td {
+            background: #f8f9ff;
+        }
+
+        .similarity-badge {
+            display: inline-block;
+            padding: 0.25rem 0.6rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .similarity-high {
+            background: #d3f9d8;
+            color: #2b8a3e;
+        }
+
+        .similarity-medium {
+            background: #fff3bf;
+            color: #e67700;
+        }
+
+        .similarity-low {
+            background: #ffe3e3;
+            color: #c92a2a;
+        }
+
+        .patent-id {
+            font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.85rem;
+            color: #4361ee;
+            font-weight: 500;
+        }
+
+        .patent-title {
+            font-weight: 500;
+            color: #1a1a2e;
+        }
+
+        .patent-snippet {
+            font-size: 0.85rem;
+            color: #6c757d;
+            margin-top: 0.25rem;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: #6c757d;
+        }
+
+        .no-results .icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+        }
+
+        /* ---------- Responsive ---------- */
+        @media (max-width: 768px) {
+            .app-container {
+                padding: 1rem;
+            }
+
+            header h1 {
+                font-size: 1.5rem;
+            }
+
+            .card {
+                padding: 1.25rem;
+            }
+
+            .results-table th,
+            .results-table td {
+                padding: 0.5rem 0.75rem;
+            }
+        }
+
+        /* ---------- Utility ---------- */
+        .hidden {
+            display: none !important;
+        }
+
+        .mt-1 { margin-top: 0.5rem; }
+        .mt-2 { margin-top: 1rem; }
+        .mb-1 { margin-bottom: 0.5rem; }
+        .text-center { text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header>
+            <h1>Patent<span>RAG</span></h1>
+            <p>Upload a technical document and search for prior art in the patent database</p>
+        </header>
+
+        <!-- Input Section -->
+        <div class="card">
+            <div class="card-title">
+                <span class="icon">📄</span> Input Document
+            </div>
+
+            <!-- File Upload Area -->
+            <div class="file-upload-area" id="fileUploadArea">
+                <div class="upload-icon">📁</div>
+                <p>Drag & drop a text file here, or click to browse</p>
+                <p style="font-size: 0.85rem; color: #adb5bd; margin-top: 0.25rem;">Supports .txt files</p>
+                <div class="file-name hidden" id="fileName"></div>
+                <input type="file" id="fileInput" accept=".txt">
+            </div>
+
+            <!-- Or paste text directly -->
+            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem;">
+                <span style="font-size: 0.85rem; color: #6c757d; font-weight: 500;">— OR —</span>
+                <div style="flex: 1; height: 1px; background: #e9ecef;"></div>
+            </div>
+
+            <textarea id="documentText" placeholder="Paste your technical document content here..."></textarea>
+
+            <!-- Action Buttons -->
+            <div class="btn-group">
+                <button class="btn btn-primary" id="searchBtn" disabled>
+                    🔍 Search Prior Art
+                </button>
+                <button class="btn btn-secondary" id="clearBtn">
+                    ✕ Clear
+                </button>
+            </div>
+
+            <!-- Status Bar -->
+            <div class="status-bar hidden" id="statusBar">
+                <span class="spinner" id="statusSpinner"></span>
+                <span id="statusMessage">Processing...</span>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div class="card results-section hidden" id="resultsSection">
+            <div class="card-title">
+                <span class="icon">📊</span> Search Results
+            </div>
+
+            <div class="results-summary">
+                <div class="results-count">
+                    Found <strong id="resultCount">0</strong> prior art documents
+                </div>
+                <button class="btn btn-danger btn-sm" id="clearResultsBtn" style="padding: 0.4rem 1rem; font-size: 0.85rem;">
+                    ✕ Clear Results
+                </button>
+            </div>
+
+            <div id="resultsContent">
+                <!-- Results will be dynamically inserted here -->
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer style="text-align: center; padding: 2rem 0 0.5rem; color: #adb5bd; font-size: 0.8rem;">
+            PatentRAG — Prior Art Search System
+        </footer>
+    </div>
+
+    <script>
+        // ============================================================
+        //  DOM References
+        // ============================================================
+        const fileUploadArea = document.getElementById('fileUploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const fileName = document.getElementById('fileName');
+        const documentText = document.getElementById('documentText');
+        const searchBtn = document.getElementById('searchBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const statusBar = document.getElementById('statusBar');
+        const statusSpinner = document.getElementById('statusSpinner');
+        const statusMessage = document.getElementById('statusMessage');
+        const resultsSection = document.getElementById('resultsSection');
+        const resultCount = document.getElementById('resultCount');
+        const resultsContent = document.getElementById('resultsContent');
+        const clearResultsBtn = document.getElementById('clearResultsBtn');
+
+        // ============================================================
+        //  State
+        // ============================================================
+        let selectedFile = null;
+
+        // ============================================================
+        //  File Upload Handling
+        // ============================================================
+
+        // Click to browse
+        fileUploadArea.addEventListener('click', () => fileInput.click());
+
+        // File selected via browser dialog
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                handleFileSelection(file);
+            }
+        });
+
+        // Drag & drop events
+        fileUploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            fileUploadArea.classList.add('dragover');
+        });
+
+        fileUploadArea.addEventListener('dragleave', () => {
+            fileUploadArea.classList.remove('dragover');
+        });
+
+        fileUploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            fileUploadArea.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file) {
+                handleFileSelection(file);
+            }
+        });
+
+        /**
+         * Handle file selection: read the file content into the textarea.
+         * @param {File} file - The selected text file.
+         */
+        function handleFileSelection(file) {
+            if (!file.name.endsWith('.txt')) {
+                showStatus('Please select a .txt file.', 'error');
+                return;
+            }
+
+            selectedFile = file;
+            fileName.textContent = `📎 ${file.name}`;
+            fileName.classList.remove('hidden');
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                documentText.value = e.target.result;
+                updateSearchButton();
+            };
+            reader.onerror = () => {
+                showStatus('Failed to read file. Please try again.', 'error');
+            };
+            reader.readAsText(file);
+        }
+
+        // ============================================================
+        //  Text Input Handling
+        // ============================================================
+
+        documentText.addEventListener('input', () => {
+            // If user manually edits text, clear the file association
+            if (selectedFile) {
+                selectedFile = null;
+                fileName.classList.add('hidden');
+                fileInput.value = '';
+            }
+            updateSearchButton();
+        });
+
+        // ============================================================
+        //  UI Helpers
+        // ============================================================
+
+        /**
+         * Enable/disable the search button based on whether there is input text.
+         */
+        function updateSearchButton() {
+            const hasText = documentText.value.trim().length > 0;
+            searchBtn.disabled = !hasText;
+        }
+
+        /**
+         * Show a status message in the status bar.
+         * @param {string} message - The message to display.
+         * @param {'info'|'success'|'error'} type - The type of status.
+         * @param {boolean} showSpinner - Whether to show a loading spinner.
+         */
+        function showStatus(message, type = 'info', showSpinner = false) {
+            statusBar.classList.remove('hidden', 'info', 'success', 'error');
+            statusBar.classList.add(type);
+            statusMessage.textContent = message;
+
+            if (showSpinner) {
+                statusSpinner.classList.remove('hidden');
+            } else {
+                statusSpinner.classList.add('hidden');
+            }
+        }
+
+        function hideStatus() {
+            statusBar.classList.add('hidden');
+        }
+
+        /**
+         * Format a similarity score (0-1) as a percentage string with color badge.
+         * @param {number} score - Similarity score between 0 and 1.
+         * @returns {string} HTML string for the badge.
+         */
+        function formatSimilarity(score) {
+            const pct = (score * 100).toFixed(1);
+            let cssClass = 'similarity-low';
+            if (score >= 0.7) {
+                cssClass = 'similarity-high';
+            } else if (score >= 0.4) {
+                cssClass = 'similarity-medium';
+            }
+            return `<span class="similarity-badge ${cssClass}">${pct}%</span>`;
+        }
+
+        // ============================================================
+        //  API Call
+        // ============================================================
+
+        /**
+         * Send the document text to the backend API for prior art search.
+         * @param {string} text - The document content to search against.
+         * @returns {Promise<Object>} The API response JSON.
+         */
+        async function searchPriorArt(text) {
+            const response = await fetch('/api/search', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || `Server returned ${response.status}`);
+            }
+
+            return await response.json();
+        }
+
+        // ============================================================
+        //  Render Results
+        // ============================================================
+
+        /**
+         * Render the search results into the results section.
+         * @param {Object} data - The API response data.
+         */
+        function renderResults(data) {
+            resultsSection.classList.remove('hidden');
+
+            // Try to extract results from various possible response formats
+            let results = [];
+
+            if (Array.isArray(data)) {
+                // Direct array of results
+                results = data;
+            } else if (data.results && Array.isArray(data.results)) {
+                results = data.results;
+            } else if (data.data && Array.isArray(data.data)) {
+                results = data.data;
+            } else if (data.documents && Array.isArray(data.documents)) {
+                results = data.documents;
+            } else {
+                // Unknown format — display raw JSON
+                resultsContent.innerHTML = `
+                    <div class="no-results">
+                        <div class="icon">🤔</div>
+                        <p>Unexpected response format from the API.</p>
+                        <pre style="text-align: left; background: #f8f9fa; padding: 1rem; border-radius: 8px; font-size: 0.8rem; overflow-x: auto; margin-top: 1rem;">${JSON.stringify(data, null, 2)}</pre>
+                    </div>
+                `;
+                resultCount.textContent = '?';
+                return;
+            }
+
+            resultCount.textContent = results.length;
+
+            if (results.length === 0) {
+                resultsContent.innerHTML = `
+                    <div class="no-results">
+                        <div class="icon">🔍</div>
+                        <p>No prior art documents found matching your query.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Build the results table
+            let html = `
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 15%;">Patent ID</th>
+                            <th style="width: 40%;">Title</th>
+                            <th style="width: 15%;">Similarity</th>
+                            <th style="width: 30%;">Snippet</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            for (const doc of results) {
+                // Handle different possible field names from the API
+                const id = doc.patent_id || doc.id || doc.patentId || doc.document_id || '-';
+                const title = doc.title || doc.name || doc.patent_title || 'Untitled';
+                const similarity = doc.similarity !== undefined ? doc.similarity :
+                                   doc.score !== undefined ? doc.score :
+                                   doc.relevance !== undefined ? doc.relevance : 0;
+                const snippet = doc.snippet || doc.text || doc.abstract || doc.description || '';
+
+                html += `
+                    <tr>
+                        <td><span class="patent-id">${escapeHtml(id)}</span></td>
+                        <td><div class="patent-title">${escapeHtml(title)}</div></td>
+                        <td>${formatSimilarity(Number(similarity))}</td>
+                        <td><div class="patent-snippet">${escapeHtml(snippet.substring(0, 200))}</div></td>
+                    </tr>
+                `;
+            }
+
+            html += `
+                    </tbody>
+                </table>
+            `;
+
+            resultsContent.innerHTML = html;
+        }
+
+        /**
+         * Simple HTML escaping to prevent XSS.
+         * @param {string} str - The string to escape.
+         * @returns {string} The escaped string.
+         */
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // ============================================================
+        //  Event Handlers
+        // ============================================================
+
+        // Search button click
+        searchBtn.addEventListener('click', async () => {
+            const text = documentText.value.trim();
+            if (!text) {
+                showStatus('Please enter or upload a document first.', 'error');
+                return;
+            }
+
+            // Disable button and show loading state
+            searchBtn.disabled = true;
+            searchBtn.textContent = '⏳ Searching...';
+            showStatus('Searching the patent database for prior art...', 'info', true);
+
+            try {
+                const data = await searchPriorArt(text);
+                hideStatus();
+                renderResults(data);
+                showStatus('Search completed successfully!', 'success');
+            } catch (err) {
+                hideStatus();
+                showStatus(`Search failed: ${err.message}`, 'error');
+                console.error('Search error:', err);
+            } finally {
+                searchBtn.disabled = false;
+                searchBtn.textContent = '🔍 Search Prior Art';
+                updateSearchButton();
+            }
+        });
+
+        // Clear button — clears input text and file
+        clearBtn.addEventListener('click', () => {
+            documentText.value = '';
+            selectedFile = null;
+            fileName.classList.add('hidden');
+            fileInput.value = '';
+            hideStatus();
+            updateSearchButton();
+        });
+
+        // Clear results button
+        clearResultsBtn.addEventListener('click', () => {
+            resultsSection.classList.add('hidden');
+            resultsContent.innerHTML = '';
+            resultCount.textContent = '0';
+        });
+
+        // ============================================================
+        //  Initialization
+        // ============================================================
+
+        updateSearchButton();
+        console.log('PatentRAG frontend initialized.');
+    </script>
+</body>
+</html>
