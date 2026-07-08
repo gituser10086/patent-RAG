@@ -3,528 +3,753 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PatentRAG - Prior Art Search</title>
+    <title>PatentRAG - Novelty Search</title>
     <style>
-        /* ---------- Reset & Base ---------- */
+        :root {
+            color-scheme: light;
+            --bg: #f5f5f8;
+            --panel: #f0f0f5;
+            --panel-border: #cac4d0;
+            --surface: #ffffff;
+            --surface-border: #d7d7dc;
+            --text: #1d1d22;
+            --muted: #8d8d96;
+            --muted-strong: #6f7078;
+            --accent: #111114;
+            --accent-soft: #ededf0;
+            --success: #217a3b;
+            --success-bg: #e7f7ec;
+            --warning: #9a5b00;
+            --warning-bg: #fff2ce;
+            --danger: #b12a3c;
+            --danger-bg: #ffe7eb;
+            --info: #315fbd;
+            --info-bg: #eaf1ff;
+            --shadow: 0 22px 60px rgba(20, 20, 35, 0.10);
+            --font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+
         *, *::before, *::after {
             box-sizing: border-box;
+        }
+
+        * {
+            margin: 0;
+        }
+
+        body {
+            min-height: 100vh;
+            background:
+                linear-gradient(rgba(20, 20, 35, 0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(20, 20, 35, 0.025) 1px, transparent 1px),
+                var(--bg);
+            background-size: 44px 44px;
+            color: var(--text);
+            font-family: var(--font);
+            line-height: 1.5;
+        }
+
+        button,
+        textarea {
+            font: inherit;
+        }
+
+        button {
+            border: 0;
+        }
+
+        .app {
+            width: min(100%, 1180px);
+            margin: 0 auto;
+            padding: 28px 18px 56px;
+        }
+
+        body.report-mode {
+            background: #f1f1f1;
+        }
+
+        body.report-mode .app {
+            width: 100%;
             margin: 0;
             padding: 0;
         }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            background: #f0f2f5;
-            color: #1a1a2e;
-            min-height: 100vh;
-            line-height: 1.6;
+        .search-stage {
+            min-height: clamp(520px, 76vh, 720px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(38px, 7vw, 74px);
+            padding: clamp(34px, 8vw, 92px) clamp(16px, 8vw, 140px);
+            background:
+                radial-gradient(circle at top left, rgba(255, 255, 255, 0.86), transparent 32%),
+                var(--panel);
+            border: 4px solid var(--panel-border);
+            border-radius: 18px;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82);
         }
 
-        /* ---------- Layout ---------- */
-        .app-container {
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 2rem 1.5rem;
-        }
-
-        /* ---------- Header ---------- */
-        header {
+        .brand-title {
+            max-width: 100%;
+            font-size: clamp(2rem, 5vw, 3.8rem);
+            font-weight: 800;
+            line-height: 1.1;
+            letter-spacing: 0;
             text-align: center;
-            margin-bottom: 2.5rem;
         }
 
-        header h1 {
-            font-size: 2rem;
-            font-weight: 700;
-            color: #1a1a2e;
-            letter-spacing: -0.5px;
-        }
-
-        header h1 span {
-            color: #4361ee;
-        }
-
-        header p {
-            color: #6c757d;
-            font-size: 1rem;
-            margin-top: 0.3rem;
-        }
-
-        /* ---------- Cards ---------- */
-        .card {
-            background: #ffffff;
-            border-radius: 12px;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-            padding: 1.75rem;
-            margin-bottom: 1.5rem;
-            transition: box-shadow 0.2s ease;
-        }
-
-        .card:hover {
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-        }
-
-        .card-title {
-            font-size: 1.1rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
+        .composer {
+            position: relative;
+            width: min(100%, 820px);
+            min-height: clamp(320px, 42vw, 380px);
+            padding: clamp(26px, 4.6vw, 40px);
             display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .card-title .icon {
-            font-size: 1.3rem;
-        }
-
-        /* ---------- Textarea ---------- */
-        textarea {
-            width: 100%;
-            min-height: 200px;
-            padding: 1rem;
-            border: 1.5px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 0.95rem;
-            font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
-            resize: vertical;
-            transition: border-color 0.2s ease;
-            line-height: 1.5;
-        }
-
-        textarea:focus {
-            outline: none;
-            border-color: #4361ee;
-            box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
-        }
-
-        textarea::placeholder {
-            color: #adb5bd;
-        }
-
-        /* ---------- File Upload Area ---------- */
-        .file-upload-area {
-            border: 2px dashed #d0d5dd;
-            border-radius: 8px;
-            padding: 2rem;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            margin-bottom: 1rem;
-        }
-
-        .file-upload-area:hover,
-        .file-upload-area.dragover {
-            border-color: #4361ee;
-            background: rgba(67, 97, 238, 0.03);
-        }
-
-        .file-upload-area .upload-icon {
-            font-size: 2.5rem;
-            color: #4361ee;
-            margin-bottom: 0.5rem;
-        }
-
-        .file-upload-area p {
-            color: #6c757d;
-            font-size: 0.95rem;
-        }
-
-        .file-upload-area .file-name {
-            color: #4361ee;
-            font-weight: 600;
-            margin-top: 0.5rem;
-        }
-
-        .file-upload-area input[type="file"] {
-            display: none;
-        }
-
-        /* ---------- Buttons ---------- */
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.7rem 1.5rem;
-            border: none;
-            border-radius: 8px;
-            font-size: 0.95rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-
-        .btn-primary {
-            background: #4361ee;
-            color: #ffffff;
-        }
-
-        .btn-primary:hover:not(:disabled) {
-            background: #3651d4;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(67, 97, 238, 0.3);
-        }
-
-        .btn-secondary {
-            background: #e9ecef;
-            color: #495057;
-        }
-
-        .btn-secondary:hover:not(:disabled) {
-            background: #dee2e6;
-        }
-
-        .btn-danger {
-            background: #ef476f;
-            color: #ffffff;
-        }
-
-        .btn-danger:hover:not(:disabled) {
-            background: #d63d62;
-        }
-
-        .btn-group {
-            display: flex;
-            gap: 0.75rem;
-            flex-wrap: wrap;
-            margin-top: 1rem;
-        }
-
-        /* ---------- Status / Loading ---------- */
-        .status-bar {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 0.75rem 1rem;
-            border-radius: 8px;
-            margin-top: 1rem;
-            font-size: 0.9rem;
-            font-weight: 500;
-        }
-
-        .status-bar.hidden {
-            display: none;
-        }
-
-        .status-bar.info {
-            background: #e7f0ff;
-            color: #1a56db;
-        }
-
-        .status-bar.success {
-            background: #d3f9d8;
-            color: #2b8a3e;
-        }
-
-        .status-bar.error {
-            background: #ffe3e3;
-            color: #c92a2a;
-        }
-
-        .spinner {
-            display: inline-block;
-            width: 18px;
-            height: 18px;
-            border: 2.5px solid #e0e0e0;
-            border-top-color: #4361ee;
-            border-radius: 50%;
-            animation: spin 0.7s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        /* ---------- Results Table ---------- */
-        .results-section {
-            margin-top: 0.5rem;
-        }
-
-        .results-summary {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1rem;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-        }
-
-        .results-count {
-            font-size: 0.9rem;
-            color: #6c757d;
-        }
-
-        .results-count strong {
-            color: #1a1a2e;
-        }
-
-        .results-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .results-table th {
-            text-align: left;
-            padding: 0.75rem 1rem;
-            font-size: 0.8rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #6c757d;
-            border-bottom: 2px solid #e9ecef;
-        }
-
-        .results-table td {
-            padding: 0.75rem 1rem;
-            border-bottom: 1px solid #f0f0f0;
-            font-size: 0.9rem;
-            vertical-align: top;
-        }
-
-        .results-table tr:hover td {
-            background: #f8f9ff;
-        }
-
-        .similarity-badge {
-            display: inline-block;
-            padding: 0.25rem 0.6rem;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-
-        .similarity-high {
-            background: #d3f9d8;
-            color: #2b8a3e;
-        }
-
-        .similarity-medium {
-            background: #fff3bf;
-            color: #e67700;
-        }
-
-        .similarity-low {
-            background: #ffe3e3;
-            color: #c92a2a;
-        }
-
-        .patent-id {
-            font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
-            font-size: 0.85rem;
-            color: #4361ee;
-            font-weight: 500;
-        }
-
-        .patent-title {
-            font-weight: 500;
-            color: #1a1a2e;
-        }
-
-        .patent-snippet {
-            font-size: 0.85rem;
-            color: #6c757d;
-            margin-top: 0.25rem;
-            display: -webkit-box;
-            -webkit-line-clamp: 3;
-            -webkit-box-orient: vertical;
+            flex-direction: column;
+            background: var(--surface);
+            border: 1px solid var(--surface-border);
+            border-radius: clamp(26px, 5vw, 42px);
+            box-shadow: var(--shadow);
             overflow: hidden;
         }
 
-        .no-results {
+        .composer::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            border-radius: inherit;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.96);
+        }
+
+        .textarea-wrap {
+            position: relative;
+            z-index: 1;
+            flex: 1;
+            min-height: 220px;
+        }
+
+        #documentText {
+            width: 100%;
+            height: 100%;
+            min-height: 220px;
+            resize: none;
+            border: 0;
+            outline: 0;
+            background: transparent;
+            color: var(--text);
+            font-size: clamp(1.1rem, 2.35vw, 1.65rem);
+            line-height: 1.32;
+            letter-spacing: 0;
+        }
+
+        #documentText::placeholder {
+            color: #b7b7bd;
+        }
+
+        .example-text {
+            position: absolute;
+            inset: clamp(48px, 6vw, 62px) 0 auto 0;
+            pointer-events: none;
+            color: #bebec4;
+            font-size: clamp(0.72rem, 1.35vw, 0.88rem);
+            line-height: 1.35;
+            opacity: 1;
+            transition: opacity 160ms ease;
+        }
+
+        .textarea-wrap.has-content .example-text {
+            opacity: 0;
+        }
+
+        .composer-actions {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            min-height: 54px;
+            padding-top: 22px;
+        }
+
+        .left-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .icon-btn {
+            width: 52px;
+            height: 52px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 999px;
+            color: var(--accent);
+            background: transparent;
+            cursor: pointer;
+            transition: background 160ms ease, color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+        }
+
+        .icon-btn:hover:not(:disabled),
+        .icon-btn:focus-visible {
+            background: var(--accent-soft);
+            outline: none;
+        }
+
+        .icon-btn:active:not(:disabled) {
+            transform: scale(0.97);
+        }
+
+        .icon-btn svg {
+            width: 28px;
+            height: 28px;
+            stroke-width: 1.8;
+        }
+
+        .submit-btn {
+            background: #111114;
+            color: #ffffff;
+            box-shadow: 0 12px 32px rgba(17, 17, 20, 0.18);
+        }
+
+        .submit-btn:hover:not(:disabled),
+        .submit-btn:focus-visible {
+            background: #000000;
+            box-shadow: 0 16px 34px rgba(17, 17, 20, 0.24);
+        }
+
+        .submit-btn:disabled {
+            background: #e0e0e3;
+            color: #b5b5ba;
+            box-shadow: inset 0 0 0 2px #c6c6cb;
+            cursor: not-allowed;
+        }
+
+        .file-name {
+            min-width: 0;
+            max-width: min(460px, 48vw);
+            padding: 8px 12px;
+            overflow: hidden;
+            border: 1px solid #e2e2e7;
+            border-radius: 999px;
+            background: #f7f7fa;
+            color: var(--muted-strong);
+            font-size: 0.84rem;
+            font-weight: 600;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .clear-btn {
+            width: 38px;
+            height: 38px;
+            color: var(--muted-strong);
+        }
+
+        .clear-btn svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .status-bar {
+            width: min(100%, 820px);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            border-radius: 14px;
+            font-size: 0.92rem;
+            font-weight: 650;
+        }
+
+        .status-bar.info {
+            background: var(--info-bg);
+            color: var(--info);
+        }
+
+        .status-bar.success {
+            background: var(--success-bg);
+            color: var(--success);
+        }
+
+        .status-bar.error {
+            background: var(--danger-bg);
+            color: var(--danger);
+        }
+
+        .spinner {
+            width: 18px;
+            height: 18px;
+            flex: 0 0 auto;
+            border: 2px solid currentColor;
+            border-right-color: transparent;
+            border-radius: 999px;
+            animation: spin 720ms linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .report-page {
+            min-height: 100vh;
+            display: grid;
+            grid-template-columns: 333px minmax(0, 1fr);
+            background: #f1f1f1;
+            color: #111111;
+        }
+
+        .report-sidebar {
+            min-height: 100vh;
+            padding: 33px 16px;
+            background: #ffffff;
+            border-right: 1px solid #d4d4d4;
+        }
+
+        .report-brand {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 14px;
+            font-size: 1rem;
+            font-weight: 760;
+        }
+
+        .brand-mark {
+            width: 24px;
+            height: 24px;
+            color: #6a4bb3;
+        }
+
+        .report-status {
+            margin-bottom: 10px;
+            color: #777777;
+            font-size: 0.92rem;
+            font-weight: 760;
+        }
+
+        .progress-list {
+            display: grid;
+            gap: 13px;
+            list-style: none;
+            padding: 0;
+        }
+
+        .progress-step {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #1f1f1f;
+            font-size: 1rem;
+            line-height: 1.45;
+        }
+
+        .progress-dot {
+            width: 8px;
+            height: 8px;
+            flex: 0 0 auto;
+            border-radius: 999px;
+            background: #d7d7d7;
+            opacity: 0;
+        }
+
+        .progress-step.active .progress-dot {
+            background: #6a4bb3;
+            opacity: 1;
+        }
+
+        .progress-step.done .progress-dot {
+            background: #111111;
+            opacity: 1;
+        }
+
+        .sidebar-actions {
+            margin-top: 28px;
+        }
+
+        .text-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 10px;
+            border-radius: 8px;
+            background: #f4f4f4;
+            color: #1f1f1f;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 700;
+        }
+
+        .text-btn:hover,
+        .text-btn:focus-visible {
+            background: #e9e9e9;
+            outline: none;
+        }
+
+        .report-main {
+            min-width: 0;
+            padding: 0 16px 58px 32px;
+        }
+
+        .report-title-band {
+            min-height: 71px;
+            display: flex;
+            align-items: center;
+            margin-bottom: 87px;
+            padding: 18px 0 18px 0;
+            background: #ffffff;
+        }
+
+        .report-title-band h2 {
+            font-size: 1.52rem;
+            font-weight: 790;
+            line-height: 1.1;
+        }
+
+        .report-content {
+            display: grid;
+            gap: 66px;
+            max-width: 880px;
+        }
+
+        .report-block {
+            padding: 10px 10px 12px;
+            background: #ffffff;
+        }
+
+        .report-block h3 {
+            margin-bottom: 25px;
+            font-size: 1.55rem;
+            font-weight: 790;
+            line-height: 1.1;
+        }
+
+        .report-block h4 {
+            margin-bottom: 2px;
+            font-size: 1.48rem;
+            font-weight: 790;
+            line-height: 1.18;
+        }
+
+        .report-block p,
+        .report-block li {
+            color: #111111;
+            font-size: 0.95rem;
+            line-height: 1.38;
+        }
+
+        .report-block ul {
+            display: grid;
+            gap: 5px;
+            padding-left: 20px;
+        }
+
+        .report-meta {
+            margin-top: 8px;
+            color: #555555;
+            font-size: 0.86rem;
+            font-weight: 700;
+        }
+
+        .report-loading {
+            color: #4f4f4f;
+            font-size: 1rem;
+            font-weight: 650;
+        }
+
+        .report-error {
+            color: var(--danger);
+        }
+
+        .similarity-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 68px;
+            padding: 7px 10px;
+            border-radius: 999px;
+            font-size: 0.82rem;
+            font-weight: 800;
+        }
+
+        .similarity-high {
+            background: var(--success-bg);
+            color: var(--success);
+        }
+
+        .similarity-medium {
+            background: var(--warning-bg);
+            color: var(--warning);
+        }
+
+        .similarity-low {
+            background: var(--danger-bg);
+            color: var(--danger);
+        }
+
+        .empty-state {
+            padding: 34px 20px;
+            color: var(--muted-strong);
             text-align: center;
-            padding: 3rem 1rem;
-            color: #6c757d;
         }
 
-        .no-results .icon {
-            font-size: 3rem;
-            margin-bottom: 0.5rem;
-        }
-
-        /* ---------- Responsive ---------- */
-        @media (max-width: 768px) {
-            .app-container {
-                padding: 1rem;
-            }
-
-            header h1 {
-                font-size: 1.5rem;
-            }
-
-            .card {
-                padding: 1.25rem;
-            }
-
-            .results-table th,
-            .results-table td {
-                padding: 0.5rem 0.75rem;
-            }
-        }
-
-        /* ---------- Utility ---------- */
         .hidden {
             display: none !important;
         }
 
-        .mt-1 { margin-top: 0.5rem; }
-        .mt-2 { margin-top: 1rem; }
-        .mb-1 { margin-bottom: 0.5rem; }
-        .text-center { text-align: center; }
+        @media (max-width: 820px) {
+            .app {
+                padding: 12px 10px 36px;
+            }
+
+            .search-stage {
+                min-height: calc(100vh - 24px);
+                justify-content: flex-start;
+                padding-top: 58px;
+                border-width: 3px;
+            }
+
+            .composer {
+                min-height: 360px;
+            }
+
+            .composer-actions {
+                align-items: flex-end;
+            }
+
+            .file-name {
+                max-width: 46vw;
+            }
+
+            .report-page {
+                grid-template-columns: 1fr;
+            }
+
+            .report-sidebar {
+                min-height: auto;
+                border-right: 0;
+                border-bottom: 1px solid #d4d4d4;
+            }
+
+            .report-main {
+                padding: 0 14px 40px;
+            }
+
+            .report-title-band {
+                margin-bottom: 38px;
+                padding-left: 0;
+            }
+
+            .report-content {
+                max-width: none;
+                gap: 38px;
+            }
+        }
+
+        @media (max-width: 520px) {
+            .search-stage {
+                gap: 32px;
+                padding-right: 12px;
+                padding-left: 12px;
+            }
+
+            .composer {
+                min-height: 410px;
+                padding: 22px;
+                border-radius: 28px;
+            }
+
+            #documentText {
+                font-size: 1.1rem;
+            }
+
+            .example-text {
+                top: 78px;
+            }
+
+            .icon-btn {
+                width: 48px;
+                height: 48px;
+            }
+
+            .report-sidebar {
+                padding: 24px 14px;
+            }
+
+            .progress-step {
+                font-size: 0.94rem;
+            }
+
+            .report-block h3,
+            .report-block h4 {
+                font-size: 1.2rem;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="app-container">
-        <!-- Header -->
-        <header>
-            <h1>Patent<span>RAG</span></h1>
-            <p>Upload a technical document and search for prior art in the patent database</p>
-        </header>
+    <main class="app">
+        <section class="search-stage" id="searchStage" aria-labelledby="pageTitle">
+            <h1 class="brand-title" id="pageTitle">Novelty Search</h1>
 
-        <!-- Input Section -->
-        <div class="card">
-            <div class="card-title">
-                <span class="icon">📄</span> Input Document
-            </div>
+            <form class="composer" id="searchForm">
+                <div class="textarea-wrap" id="textareaWrap">
+                    <textarea
+                        id="documentText"
+                        aria-label="Technical solution"
+                        placeholder="Describe your technical solution. Type here or upload a file."
+                    ></textarea>
+                    <p class="example-text" id="exampleText">
+                        Example: A technical solution for reducing energy consumption in smart buildings uses a network of occupancy sensors, temperature sensors, and an intelligent control unit. The system continuously collects real-time environmental data and predicts room usage patterns through machine learning algorithms. Based on these predictions, it automatically adjusts lighting, heating, ventilation, and air-conditioning settings to match actual occupancy needs.
+                    </p>
+                </div>
 
-            <!-- File Upload Area -->
-            <div class="file-upload-area" id="fileUploadArea">
-                <div class="upload-icon">📁</div>
-                <p>Drag & drop a text file here, or click to browse</p>
-                <p style="font-size: 0.85rem; color: #adb5bd; margin-top: 0.25rem;">Supports .txt files</p>
-                <div class="file-name hidden" id="fileName"></div>
-                <input type="file" id="fileInput" accept=".txt">
-            </div>
+                <div class="composer-actions">
+                    <div class="left-actions">
+                        <button class="icon-btn" id="uploadBtn" type="button" aria-label="Upload text file" title="Upload text file">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                                <path d="M12 16V4"></path>
+                                <path d="m7 9 5-5 5 5"></path>
+                                <path d="M5 20h14"></path>
+                            </svg>
+                        </button>
+                        <button class="icon-btn clear-btn hidden" id="clearBtn" type="button" aria-label="Clear text" title="Clear text">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                                <path d="M18 6 6 18"></path>
+                                <path d="m6 6 12 12"></path>
+                            </svg>
+                        </button>
+                        <div class="file-name hidden" id="fileName"></div>
+                        <input type="file" id="fileInput" accept=".txt,text/plain">
+                    </div>
 
-            <!-- Or paste text directly -->
-            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem;">
-                <span style="font-size: 0.85rem; color: #6c757d; font-weight: 500;">— OR —</span>
-                <div style="flex: 1; height: 1px; background: #e9ecef;"></div>
-            </div>
+                    <button class="icon-btn submit-btn" id="searchBtn" type="submit" disabled aria-label="Search prior art" title="Search prior art">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                            <path d="M12 19V5"></path>
+                            <path d="m5 12 7-7 7 7"></path>
+                        </svg>
+                    </button>
+                </div>
+            </form>
 
-            <textarea id="documentText" placeholder="Paste your technical document content here..."></textarea>
-
-            <!-- Action Buttons -->
-            <div class="btn-group">
-                <button class="btn btn-primary" id="searchBtn" disabled>
-                    🔍 Search Prior Art
-                </button>
-                <button class="btn btn-secondary" id="clearBtn">
-                    ✕ Clear
-                </button>
-            </div>
-
-            <!-- Status Bar -->
-            <div class="status-bar hidden" id="statusBar">
-                <span class="spinner" id="statusSpinner"></span>
+            <div class="status-bar hidden" id="statusBar" role="status" aria-live="polite">
+                <span class="spinner hidden" id="statusSpinner"></span>
                 <span id="statusMessage">Processing...</span>
             </div>
-        </div>
+        </section>
 
-        <!-- Results Section -->
-        <div class="card results-section hidden" id="resultsSection">
-            <div class="card-title">
-                <span class="icon">📊</span> Search Results
-            </div>
-
-            <div class="results-summary">
-                <div class="results-count">
-                    Found <strong id="resultCount">0</strong> prior art documents
+        <section class="report-page hidden" id="reportPage" aria-labelledby="reportTitle">
+            <aside class="report-sidebar">
+                <div class="report-brand">
+                    <svg class="brand-mark" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M12 2.25 14.43 4.7l3.43-.49 1.1 3.28 3.04 1.67-1.54 3.09 1.54 3.09-3.04 1.67-1.1 3.28-3.43-.49L12 21.75 9.57 19.3l-3.43.49-1.1-3.28L2 14.84l1.54-3.09L2 8.66l3.04-1.67 1.1-3.28 3.43.49L12 2.25Z"></path>
+                    </svg>
+                    <span>Novelty Search</span>
                 </div>
-                <button class="btn btn-danger btn-sm" id="clearResultsBtn" style="padding: 0.4rem 1rem; font-size: 0.85rem;">
-                    ✕ Clear Results
-                </button>
-            </div>
+                <div class="report-status" id="reportStatus">Searching...</div>
+                <ol class="progress-list" aria-label="Report generation progress">
+                    <li class="progress-step" data-step="0"><span class="progress-dot"></span><span>Step 1: finding reference patents</span></li>
+                    <li class="progress-step" data-step="1"><span class="progress-dot"></span><span>Step 2: AI matching patents</span></li>
+                    <li class="progress-step" data-step="2"><span class="progress-dot"></span><span>Step 3: analysing novelty</span></li>
+                    <li class="progress-step" data-step="3"><span class="progress-dot"></span><span>Step 4: preparing result documents</span></li>
+                </ol>
+                <div class="sidebar-actions">
+                    <button class="text-btn hidden" id="newSearchBtn" type="button">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" aria-hidden="true">
+                            <path d="M19 12H5"></path>
+                            <path d="m12 19-7-7 7-7"></path>
+                        </svg>
+                        New search
+                    </button>
+                </div>
+            </aside>
 
-            <div id="resultsContent">
-                <!-- Results will be dynamically inserted here -->
+            <div class="report-main">
+                <div class="report-title-band">
+                    <h2 id="reportTitle">Search Report</h2>
+                </div>
+                <div class="report-content" id="reportContent">
+                    <section class="report-block">
+                        <p class="report-loading">Preparing report...</p>
+                    </section>
+                </div>
             </div>
-        </div>
-
-        <!-- Footer -->
-        <footer style="text-align: center; padding: 2rem 0 0.5rem; color: #adb5bd; font-size: 0.8rem;">
-            PatentRAG — Prior Art Search System
-        </footer>
-    </div>
+        </section>
+    </main>
 
     <script>
-        // ============================================================
-        //  DOM References
-        // ============================================================
-        const fileUploadArea = document.getElementById('fileUploadArea');
         const fileInput = document.getElementById('fileInput');
+        const uploadBtn = document.getElementById('uploadBtn');
         const fileName = document.getElementById('fileName');
         const documentText = document.getElementById('documentText');
+        const textareaWrap = document.getElementById('textareaWrap');
+        const searchStage = document.getElementById('searchStage');
+        const searchForm = document.getElementById('searchForm');
         const searchBtn = document.getElementById('searchBtn');
         const clearBtn = document.getElementById('clearBtn');
         const statusBar = document.getElementById('statusBar');
         const statusSpinner = document.getElementById('statusSpinner');
         const statusMessage = document.getElementById('statusMessage');
-        const resultsSection = document.getElementById('resultsSection');
-        const resultCount = document.getElementById('resultCount');
-        const resultsContent = document.getElementById('resultsContent');
-        const clearResultsBtn = document.getElementById('clearResultsBtn');
+        const reportPage = document.getElementById('reportPage');
+        const reportStatus = document.getElementById('reportStatus');
+        const reportContent = document.getElementById('reportContent');
+        const progressSteps = Array.from(document.querySelectorAll('.progress-step'));
+        const newSearchBtn = document.getElementById('newSearchBtn');
 
-        // ============================================================
-        //  State
-        // ============================================================
         let selectedFile = null;
+        let progressTimer = null;
 
-        // ============================================================
-        //  File Upload Handling
-        // ============================================================
+        uploadBtn.addEventListener('click', () => fileInput.click());
 
-        // Click to browse
-        fileUploadArea.addEventListener('click', () => fileInput.click());
-
-        // File selected via browser dialog
-        fileInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
+        fileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
             if (file) {
                 handleFileSelection(file);
             }
         });
 
-        // Drag & drop events
-        fileUploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            fileUploadArea.classList.add('dragover');
+        searchForm.addEventListener('dragover', (event) => {
+            event.preventDefault();
+            searchForm.style.borderColor = '#a9a3b8';
         });
 
-        fileUploadArea.addEventListener('dragleave', () => {
-            fileUploadArea.classList.remove('dragover');
+        searchForm.addEventListener('dragleave', () => {
+            searchForm.style.borderColor = '';
         });
 
-        fileUploadArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            fileUploadArea.classList.remove('dragover');
-            const file = e.dataTransfer.files[0];
+        searchForm.addEventListener('drop', (event) => {
+            event.preventDefault();
+            searchForm.style.borderColor = '';
+            const file = event.dataTransfer.files[0];
             if (file) {
                 handleFileSelection(file);
             }
         });
 
-        /**
-         * Handle file selection: read the file content into the textarea.
-         * @param {File} file - The selected text file.
-         */
         function handleFileSelection(file) {
-            if (!file.name.endsWith('.txt')) {
+            const isTextFile = file.type === 'text/plain' || file.name.toLowerCase().endsWith('.txt');
+            if (!isTextFile) {
                 showStatus('Please select a .txt file.', 'error');
                 return;
             }
 
             selectedFile = file;
-            fileName.textContent = `📎 ${file.name}`;
+            fileName.textContent = file.name;
             fileName.classList.remove('hidden');
 
             const reader = new FileReader();
-            reader.onload = (e) => {
-                documentText.value = e.target.result;
-                updateSearchButton();
+            reader.onload = (event) => {
+                documentText.value = event.target.result;
+                updateComposerState();
             };
             reader.onerror = () => {
                 showStatus('Failed to read file. Please try again.', 'error');
@@ -532,79 +757,41 @@
             reader.readAsText(file);
         }
 
-        // ============================================================
-        //  Text Input Handling
-        // ============================================================
-
         documentText.addEventListener('input', () => {
-            // If user manually edits text, clear the file association
             if (selectedFile) {
                 selectedFile = null;
                 fileName.classList.add('hidden');
                 fileInput.value = '';
             }
-            updateSearchButton();
+            updateComposerState();
         });
 
-        // ============================================================
-        //  UI Helpers
-        // ============================================================
-
-        /**
-         * Enable/disable the search button based on whether there is input text.
-         */
-        function updateSearchButton() {
+        function updateComposerState() {
             const hasText = documentText.value.trim().length > 0;
             searchBtn.disabled = !hasText;
+            clearBtn.classList.toggle('hidden', !hasText && !selectedFile);
+            textareaWrap.classList.toggle('has-content', hasText);
         }
 
-        /**
-         * Show a status message in the status bar.
-         * @param {string} message - The message to display.
-         * @param {'info'|'success'|'error'} type - The type of status.
-         * @param {boolean} showSpinner - Whether to show a loading spinner.
-         */
         function showStatus(message, type = 'info', showSpinner = false) {
             statusBar.classList.remove('hidden', 'info', 'success', 'error');
             statusBar.classList.add(type);
             statusMessage.textContent = message;
-
-            if (showSpinner) {
-                statusSpinner.classList.remove('hidden');
-            } else {
-                statusSpinner.classList.add('hidden');
-            }
+            statusSpinner.classList.toggle('hidden', !showSpinner);
         }
 
         function hideStatus() {
             statusBar.classList.add('hidden');
+            statusSpinner.classList.add('hidden');
         }
 
-        /**
-         * Format a similarity score (0-1) as a percentage string with color badge.
-         * @param {number} score - Similarity score between 0 and 1.
-         * @returns {string} HTML string for the badge.
-         */
         function formatSimilarity(score) {
-            const pct = (score * 100).toFixed(1);
-            let cssClass = 'similarity-low';
-            if (score >= 0.7) {
-                cssClass = 'similarity-high';
-            } else if (score >= 0.4) {
-                cssClass = 'similarity-medium';
-            }
-            return `<span class="similarity-badge ${cssClass}">${pct}%</span>`;
+            const normalizedScore = Number.isFinite(score) ? score : 0;
+            const percent = normalizedScore <= 1 ? normalizedScore * 100 : normalizedScore;
+            const cssClass = percent >= 70 ? 'similarity-high' : percent >= 40 ? 'similarity-medium' : 'similarity-low';
+            return `<span class="similarity-badge ${cssClass}">${percent.toFixed(1)}%</span>`;
         }
 
-        // ============================================================
-        //  API Call
-        // ============================================================
-
-        /**
-         * Send the document text to the backend API for prior art search.
-         * @param {string} text - The document content to search against.
-         * @returns {Promise<Object>} The API response JSON.
-         */
         async function searchPriorArt(text) {
             const response = await fetch('/api/search', {
                 method: 'POST',
@@ -617,165 +804,258 @@
                 throw new Error(errorData.error || `Server returned ${response.status}`);
             }
 
-            return await response.json();
+            return response.json();
         }
 
-        // ============================================================
-        //  Render Results
-        // ============================================================
-
-        /**
-         * Render the search results into the results section.
-         * @param {Object} data - The API response data.
-         */
-        function renderResults(data) {
-            resultsSection.classList.remove('hidden');
-
-            // Try to extract results from various possible response formats
+        function extractResults(data) {
             let results = [];
-
             if (Array.isArray(data)) {
-                // Direct array of results
                 results = data;
-            } else if (data.results && Array.isArray(data.results)) {
+            } else if (Array.isArray(data.results)) {
                 results = data.results;
-            } else if (data.data && Array.isArray(data.data)) {
+            } else if (Array.isArray(data.data)) {
                 results = data.data;
-            } else if (data.documents && Array.isArray(data.documents)) {
+            } else if (Array.isArray(data.documents)) {
                 results = data.documents;
-            } else {
-                // Unknown format — display raw JSON
-                resultsContent.innerHTML = `
-                    <div class="no-results">
-                        <div class="icon">🤔</div>
-                        <p>Unexpected response format from the API.</p>
-                        <pre style="text-align: left; background: #f8f9fa; padding: 1rem; border-radius: 8px; font-size: 0.8rem; overflow-x: auto; margin-top: 1rem;">${JSON.stringify(data, null, 2)}</pre>
-                    </div>
-                `;
-                resultCount.textContent = '?';
-                return;
             }
 
-            resultCount.textContent = results.length;
-
-            if (results.length === 0) {
-                resultsContent.innerHTML = `
-                    <div class="no-results">
-                        <div class="icon">🔍</div>
-                        <p>No prior art documents found matching your query.</p>
-                    </div>
-                `;
-                return;
-            }
-
-            // Build the results table
-            let html = `
-                <table class="results-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 15%;">Patent ID</th>
-                            <th style="width: 40%;">Title</th>
-                            <th style="width: 15%;">Similarity</th>
-                            <th style="width: 30%;">Snippet</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
-
-            for (const doc of results) {
-                // Handle different possible field names from the API
-                const id = doc.patent_id || doc.id || doc.patentId || doc.document_id || '-';
-                const title = doc.title || doc.name || doc.patent_title || 'Untitled';
-                const similarity = doc.similarity !== undefined ? doc.similarity :
-                                   doc.score !== undefined ? doc.score :
-                                   doc.relevance !== undefined ? doc.relevance : 0;
-                const snippet = doc.snippet || doc.text || doc.abstract || doc.description || '';
-
-                html += `
-                    <tr>
-                        <td><span class="patent-id">${escapeHtml(id)}</span></td>
-                        <td><div class="patent-title">${escapeHtml(title)}</div></td>
-                        <td>${formatSimilarity(Number(similarity))}</td>
-                        <td><div class="patent-snippet">${escapeHtml(snippet.substring(0, 200))}</div></td>
-                    </tr>
-                `;
-            }
-
-            html += `
-                    </tbody>
-                </table>
-            `;
-
-            resultsContent.innerHTML = html;
+            return results;
         }
 
-        /**
-         * Simple HTML escaping to prevent XSS.
-         * @param {string} str - The string to escape.
-         * @returns {string} The escaped string.
-         */
-        function escapeHtml(str) {
+        function getDocField(doc, fields, fallback = '') {
+            for (const field of fields) {
+                if (doc[field] !== undefined && doc[field] !== null && String(doc[field]).trim()) {
+                    return doc[field];
+                }
+            }
+            return fallback;
+        }
+
+        function getSimilarity(doc) {
+            const value = doc.similarity !== undefined ? doc.similarity :
+                doc.score !== undefined ? doc.score :
+                doc.relevance !== undefined ? doc.relevance : 0;
+            const number = Number(value);
+            return Number.isFinite(number) ? number : 0;
+        }
+
+        function sentenceList(text, fallbackItems, limit = 3) {
+            const cleanText = String(text || '').replace(/\s+/g, ' ').trim();
+            if (!cleanText) {
+                return fallbackItems;
+            }
+
+            const sentences = cleanText
+                .split(/(?<=[.!?])\s+/)
+                .map((sentence) => sentence.trim())
+                .filter(Boolean)
+                .slice(0, limit);
+
+            return sentences.length ? sentences : fallbackItems;
+        }
+
+        function showReportShell() {
+            document.body.classList.add('report-mode');
+            searchStage.classList.add('hidden');
+            reportPage.classList.remove('hidden');
+            newSearchBtn.classList.add('hidden');
+            reportStatus.textContent = 'Searching...';
+            reportContent.innerHTML = `
+                <section class="report-block">
+                    <p class="report-loading">Preparing report...</p>
+                </section>
+            `;
+            setProgressStep(0);
+            startProgress();
+        }
+
+        function setProgressStep(activeIndex) {
+            progressSteps.forEach((step, index) => {
+                step.classList.toggle('done', index < activeIndex);
+                step.classList.toggle('active', index === activeIndex);
+            });
+        }
+
+        function startProgress() {
+            clearInterval(progressTimer);
+            let activeIndex = 0;
+            progressTimer = setInterval(() => {
+                activeIndex = Math.min(activeIndex + 1, progressSteps.length - 1);
+                setProgressStep(activeIndex);
+                if (activeIndex === progressSteps.length - 1) {
+                    clearInterval(progressTimer);
+                }
+            }, 900);
+        }
+
+        function completeProgress() {
+            clearInterval(progressTimer);
+            progressSteps.forEach((step) => {
+                step.classList.add('done');
+                step.classList.remove('active');
+            });
+            reportStatus.textContent = 'Report ready';
+            newSearchBtn.classList.remove('hidden');
+        }
+
+        function renderReport(data) {
+            const results = extractResults(data);
+            completeProgress();
+
+            if (!results.length) {
+                const answer = data && data.answer ? `<p>${escapeHtml(data.answer)}</p>` : '';
+                reportContent.innerHTML = `
+                    <section class="report-block">
+                        <h3>No reference patents found</h3>
+                        <h4>Novelty Found</h4>
+                        ${answer || '<p>No matching prior art documents were returned for this technical solution.</p>'}
+                    </section>
+                `;
+                return;
+            }
+
+            const topResults = results.slice(0, 2);
+            const featureBlocks = topResults.map((doc, index) => {
+                const id = getDocField(doc, ['patent_id', 'id', 'patentId', 'document_id'], 'Reference patent');
+                const title = getDocField(doc, ['title', 'name', 'patent_title'], `Reference Patent ${index + 1}`);
+                const snippet = getDocField(doc, ['snippet', 'text', 'abstract', 'description'], '');
+                const similarity = getSimilarity(doc);
+                const fallbackItems = [
+                    `Reference patent: ${String(id)}`,
+                    `Similarity score: ${formatSimilarityText(similarity)}`,
+                    'Key comparison sentences were returned by the patent knowledge graph.'
+                ];
+                const bullets = sentenceList(snippet, fallbackItems, 3)
+                    .map((item) => `<li>${escapeHtml(item)}</li>`)
+                    .join('');
+
+                return `
+                    <section class="report-block">
+                        <h3>Feature ${index + 1}: ${escapeHtml(String(title).slice(0, 52))}</h3>
+                        <h4>Reference patents comparison</h4>
+                        <ul>${bullets}</ul>
+                        <p class="report-meta">Patent ${escapeHtml(String(id))} · ${formatSimilarityText(similarity)} match</p>
+                    </section>
+                `;
+            }).join('');
+
+            const novelItems = [
+                `${results.length} reference patent${results.length === 1 ? '' : 's'} matched the submitted solution.`,
+                data && data.answer ? data.answer : 'Review the highlighted comparison sentences to decide which features remain novel.',
+                'Highest-similarity references are listed first for examiner-style review.'
+            ];
+
+            reportContent.innerHTML = `
+                ${featureBlocks}
+                <section class="report-block">
+                    <h3>Novelty Found / No Novelty Found</h3>
+                    <h4>List features that are novel</h4>
+                    <ul>${novelItems.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>
+                </section>
+            `;
+        }
+
+        function renderReportError(error) {
+            clearInterval(progressTimer);
+            setProgressStep(0);
+            reportStatus.textContent = 'Search failed';
+            newSearchBtn.classList.remove('hidden');
+            reportContent.innerHTML = `
+                <section class="report-block">
+                    <h3>Search Report</h3>
+                    <h4 class="report-error">Unable to generate report</h4>
+                    <p>${escapeHtml(error.message)}</p>
+                </section>
+            `;
+        }
+
+        function resetToSearch() {
+            clearInterval(progressTimer);
+            document.body.classList.remove('report-mode');
+            reportPage.classList.add('hidden');
+            searchStage.classList.remove('hidden');
+            reportContent.innerHTML = '';
+            hideStatus();
+            updateComposerState();
+            documentText.focus();
+        }
+
+        function renderReportPreview() {
+            showReportShell();
+            renderReport({
+                answer: 'Potential novelty remains in the adaptive control logic and the way occupancy predictions are used to reduce energy consumption while maintaining occupant comfort.',
+                results: [
+                    {
+                        patent_id: 'US-REF-001',
+                        title: 'Smart building energy management system',
+                        similarity: 0.87,
+                        snippet: 'A building management system receives occupancy sensor data and controls lighting and HVAC equipment. The reference describes automated low-power modes for unoccupied rooms. It does not emphasize predictive room usage modelling across multiple sensor types.'
+                    },
+                    {
+                        patent_id: 'US-REF-002',
+                        title: 'Occupancy based environmental controller',
+                        similarity: 0.72,
+                        snippet: 'The controller changes heating, ventilation, and lighting settings based on detected occupancy. The patent focuses on immediate sensor readings rather than machine learning forecasts of future occupancy patterns.'
+                    }
+                ]
+            });
+        }
+
+        function escapeHtml(value) {
             const div = document.createElement('div');
-            div.textContent = str;
+            div.textContent = value;
             return div.innerHTML;
         }
 
-        // ============================================================
-        //  Event Handlers
-        // ============================================================
+        function formatSimilarityText(score) {
+            const normalizedScore = Number.isFinite(score) ? score : 0;
+            const percent = normalizedScore <= 1 ? normalizedScore * 100 : normalizedScore;
+            return `${percent.toFixed(1)}%`;
+        }
 
-        // Search button click
-        searchBtn.addEventListener('click', async () => {
+        searchForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
             const text = documentText.value.trim();
             if (!text) {
                 showStatus('Please enter or upload a document first.', 'error');
                 return;
             }
 
-            // Disable button and show loading state
             searchBtn.disabled = true;
-            searchBtn.textContent = '⏳ Searching...';
-            showStatus('Searching the patent database for prior art...', 'info', true);
+            searchBtn.setAttribute('aria-busy', 'true');
+            hideStatus();
+            showReportShell();
 
             try {
                 const data = await searchPriorArt(text);
-                hideStatus();
-                renderResults(data);
-                showStatus('Search completed successfully!', 'success');
-            } catch (err) {
-                hideStatus();
-                showStatus(`Search failed: ${err.message}`, 'error');
-                console.error('Search error:', err);
+                renderReport(data);
+            } catch (error) {
+                renderReportError(error);
+                console.error('Search error:', error);
             } finally {
-                searchBtn.disabled = false;
-                searchBtn.textContent = '🔍 Search Prior Art';
-                updateSearchButton();
+                searchBtn.removeAttribute('aria-busy');
+                updateComposerState();
             }
         });
 
-        // Clear button — clears input text and file
         clearBtn.addEventListener('click', () => {
             documentText.value = '';
             selectedFile = null;
             fileName.classList.add('hidden');
             fileInput.value = '';
             hideStatus();
-            updateSearchButton();
+            updateComposerState();
+            documentText.focus();
         });
 
-        // Clear results button
-        clearResultsBtn.addEventListener('click', () => {
-            resultsSection.classList.add('hidden');
-            resultsContent.innerHTML = '';
-            resultCount.textContent = '0';
-        });
+        newSearchBtn.addEventListener('click', resetToSearch);
 
-        // ============================================================
-        //  Initialization
-        // ============================================================
+        updateComposerState();
 
-        updateSearchButton();
-        console.log('PatentRAG frontend initialized.');
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('view') === 'report' || window.location.hash === '#report') {
+            renderReportPreview();
+        }
     </script>
 </body>
 </html>
