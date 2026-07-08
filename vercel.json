@@ -1,8 +1,4 @@
 {
-  "rewrites": [
-    {
-      "source": "/",
-      "destination": "/frontend/index.html"
-    }
-  ]
+  "buildCommand": "npm run build",
+  "outputDirectory": "public"
 }
